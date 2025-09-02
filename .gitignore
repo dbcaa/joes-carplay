@@ -1,0 +1,32 @@
+# IDE files
+.idea/
+*.iml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Node/Web build artifacts
+node_modules/
+dist/
+build/
+
+# FiveM cache/temp files
+.cache/
+*.log
+
+# Python files
+__pycache__/
+*.pyc
+
+# Misc
+.env
+*.bak
+*.tmp
+
+# Web assets
+web/.env
+web/node_modules/
+web/dist/
+web/build/
+
