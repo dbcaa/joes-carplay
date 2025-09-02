@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Modern CarPlay</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* FiveM NUI specific overrides */
+        html, body {
+            background: transparent !important;
+            background-color: transparent !important;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        
+        body {
+            background: none !important;
+        }
+        
+        /* Ensure no default browser styling */
+        * {
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body class="hidden">
+    <div class="carplay-container">
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="status-left">
+                <div class="signal-bars">
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                </div>
+                <span class="carrier">Carrier</span>
+            </div>
+            <div class="status-center">
+                <span class="time" id="currentTime">12:34</span>
+            </div>
+            <div class="status-right">
+                <div class="battery">
+                    <span class="battery-percentage">100%</span>
+                    <div class="battery-icon"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Left Sidebar -->
+            <div class="sidebar-left">
+                <div class="app-grid">
+                    <div class="app-icon maps">
+                        <div class="icon">🗺️</div>
+                        <span>Maps</span>
+                    </div>
+                    <div class="app-icon music active">
+                        <div class="icon">🎵</div>
+                        <span>Music</span>
+                    </div>
+                    <div class="app-icon messages">
+                        <div class="icon">💬</div>
+                        <span>Messages</span>
+                    </div>
+                    <div class="app-icon home">
+                        <div class="icon">🏠</div>
+                        <span>Home</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Center Content -->
+            <div class="content-center">
+                <div class="now-playing">
+                    <div class="track-info">
+                        <div class="track-title-container">
+                            <h1 class="track-title scrolling-text" id="trackTitle">No Music Playing</h1>
+                        </div>
+                        <div class="track-artist-container">
+                            <p class="track-artist scrolling-text" id="trackArtist">Select a song to begin</p>
+                        </div>
+                        <div class="track-status" id="trackStatus"></div>
+                    </div>
+                    
+                    <div class="playback-controls">
+                        <button class="control-btn previous" id="previousBtn">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+                            </svg>
+                        </button>
+                        <button class="control-btn play-pause" id="playPauseBtn">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor" id="playIcon">
+                                <path d="M8 5v14l11-7z"/>
+                            </svg>
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor" id="pauseIcon" style="display: none;">
+                                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                            </svg>
+                        </button>
+                        <button class="control-btn next" id="nextBtn">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="progress-section">
+                        <div class="time-display">
+                            <span id="currentTimeDisplay">0:00</span>
+                            <span id="totalTimeDisplay">0:00</span>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" id="progressBar">
+                                <div class="progress-fill" id="progressFill"></div>
+                                <div class="progress-handle" id="progressHandle"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Queue Controls -->
+                    <div class="queue-controls">
+                        <button class="queue-control-btn shuffle-btn" id="shuffleBtn" title="Shuffle: Off">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/>
+                            </svg>
+                        </button>
+                        <button class="queue-control-btn repeat-btn repeat-none" id="repeatBtn" title="Repeat: Off">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/>
+                            </svg>
+                            <span class="repeat-one-indicator">1</span>
+                        </button>
+                        <button class="queue-control-btn clear-queue-btn" id="clearQueueBtn" title="Clear Queue">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Sidebar -->
+            <div class="sidebar-right">
+                <div class="album-art">
+                    <img id="albumArt" src="/placeholder.svg?height=200&width=200" alt="Album Art">
+                </div>
+                
+                <div class="quick-controls">
+                    <div class="url-input-section">
+                        <input type="text" id="quickUrlInput" placeholder="Paste YouTube URL..." class="url-input">
+                        <button id="quickPlayBtn" class="quick-play-btn">Play</button>
+                    </div>
+                    
+                    <!-- Volume Control -->
+                    <div class="control-group">
+                        <label for="volumeSlider">Volume: <span id="volumeValue">50</span>%</label>
+                        <input type="range" id="volumeSlider" min="0" max="100" value="50" class="control-slider">
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <button id="settingsBtn" class="settings-btn">Advanced</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Section - Queue -->
+        <div class="bottom-section">
+            <div class="queue-section">
+                <div class="queue-header">
+                    <h3>Up Next</h3>
+                    <div class="queue-info">
+                        <span id="queueCount">0 songs</span>
+                    </div>
+                </div>
+                <div class="queue-list" id="queueList">
+                    <div class="queue-item empty">
+                        <span>No songs in queue</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Close Button -->
+        <button class="close-btn" id="closeBtn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+            </svg>
+        </button>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Advanced Settings</h2>
+                <button class="modal-close" id="modalCloseBtn">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="setting-group">
+                    <label for="urlInput">YouTube URL:</label>
+                    <input type="text" id="urlInput" placeholder="https://www.youtube.com/watch?v=..." class="setting-input">
+                </div>
+                
+                <div class="setting-group">
+                    <label for="rangeSlider">Range: <span id="rangeValue">15</span>m</label>
+                    <input type="range" id="rangeSlider" min="1" max="50" value="15" class="setting-slider">
+                </div>
+                
+                <div class="modal-actions">
+                    <button id="playBtn" class="action-btn primary">Play Now</button>
+                    <button id="addToQueueBtn" class="action-btn secondary">Add to Queue</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
