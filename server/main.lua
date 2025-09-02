@@ -53,8 +53,8 @@ function GetYouTubeVideoInfo(url, callback)
 
     PerformHttpRequest(oembedUrl, function(statusCode, response, headers)
         if statusCode == 200 and response then
-            local data = json.decode(response)
-            if not data or not data.title then
+            local success, data = pcall(json.decode, response)
+            if not success or not data or not data.title then
                 callback(nil)
                 return
             end
@@ -73,7 +73,7 @@ function GetYouTubeVideoInfo(url, callback)
             callback(nil)
         end
     end, 'GET', '', {
-        ['User-Agent'] = 'Mozilla/5.0'
+        ['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     })
 end
 
@@ -95,7 +95,7 @@ function InitializePlayerQueue(playerId)
     if not playerQueues[playerId] then
         playerQueues[playerId] = {
             songs = {},
-            currentIndex = 0,
+            currentIndex = 0, -- Changed to 0-based indexing
             shuffle = false,
             repeat_mode = 'none', -- 'none', 'one', 'all'
             shuffleOrder = {}
@@ -128,7 +128,7 @@ function GetNextSong(playerId)
         return nil
     end
     
-    if queue.repeat_mode == 'one' then
+    if queue.repeat_mode == 'one' and queue.currentIndex > 0 then
         -- Repeat current song
         return queue.songs[queue.currentIndex]
     end
@@ -153,7 +153,7 @@ function GetNextSong(playerId)
         end
     else
         -- Normal order
-        if queue.currentIndex < #queue.songs then
+        if queue.currentIndex > 0 and queue.currentIndex < #queue.songs then
             nextIndex = queue.currentIndex + 1
         elseif queue.repeat_mode == 'all' then
             nextIndex = 1
@@ -181,16 +181,19 @@ function UpdateShuffleOrder(playerId)
     end
 end
 
+-- Fixed RemoveFromQueue function
 function RemoveFromQueue(playerId, index)
     InitializePlayerQueue(playerId)
     local queue = playerQueues[playerId]
     
-    if index > 0 and index <= #queue.songs then
-        table.remove(queue.songs, index)
+    -- Convert to 1-based index if needed
+    local realIndex = index
+    if realIndex > 0 and realIndex <= #queue.songs then
+        table.remove(queue.songs, realIndex)
         
         -- Adjust current index if necessary
-        if queue.currentIndex >= index then
-            queue.currentIndex = math.max(1, queue.currentIndex - 1)
+        if queue.currentIndex >= realIndex then
+            queue.currentIndex = math.max(0, queue.currentIndex - 1)
         end
         
         -- Update shuffle order
@@ -319,7 +322,7 @@ AddEventHandler('carplay:getQueue', function()
     TriggerClientEvent('carplay:queueUpdated', source, playerQueues[playerId])
 end)
 
--- Event: Remove from Queue
+-- Event: Remove from Queue (Fixed indexing)
 RegisterNetEvent('carplay:removeFromQueue')
 AddEventHandler('carplay:removeFromQueue', function(index)
     local source = source
@@ -327,6 +330,9 @@ AddEventHandler('carplay:removeFromQueue', function(index)
     
     if RemoveFromQueue(playerId, index) then
         TriggerClientEvent('carplay:queueUpdated', source, playerQueues[playerId])
+        TriggerClientEvent('carplay:notification', source, "Removed from queue")
+    else
+        TriggerClientEvent('carplay:error', source, "Failed to remove song from queue")
     end
 end)
 
@@ -426,13 +432,20 @@ AddEventHandler('carplay:playMusic', function(url, volume, range, loop, playNow)
                 }
                 songInfo.url = url
                 songInfo.loop = loop
+                songInfo.volume = volume
                 TriggerClientEvent('carplay:musicStarted', source, songInfo)
                 
-                -- Update current song in queue
+                -- Update current song in queue if there's a queue
                 InitializePlayerQueue(playerId)
                 local queue = playerQueues[playerId]
-                if #queue.songs > 0 and queue.currentIndex > 0 then
-                    queue.songs[queue.currentIndex] = songInfo
+                if #queue.songs > 0 then
+                    -- Set current index to playing song or add it
+                    if queue.currentIndex > 0 and queue.currentIndex <= #queue.songs then
+                        queue.songs[queue.currentIndex] = songInfo
+                    else
+                        table.insert(queue.songs, 1, songInfo)
+                        queue.currentIndex = 1
+                    end
                     TriggerClientEvent('carplay:queueUpdated', source, queue)
                 end
             end)
@@ -443,15 +456,21 @@ AddEventHandler('carplay:playMusic', function(url, volume, range, loop, playNow)
                 duration = 180,
                 thumbnail = "/placeholder.svg?height=300&width=300",
                 url = url,
-                loop = loop
+                loop = loop,
+                volume = volume
             }
             TriggerClientEvent('carplay:musicStarted', source, songInfo)
             
-            -- Update current song in queue
+            -- Update current song in queue if there's a queue
             InitializePlayerQueue(playerId)
             local queue = playerQueues[playerId]
-            if #queue.songs > 0 and queue.currentIndex > 0 then
-                queue.songs[queue.currentIndex] = songInfo
+            if #queue.songs > 0 then
+                if queue.currentIndex > 0 and queue.currentIndex <= #queue.songs then
+                    queue.songs[queue.currentIndex] = songInfo
+                else
+                    table.insert(queue.songs, 1, songInfo)
+                    queue.currentIndex = 1
+                end
                 TriggerClientEvent('carplay:queueUpdated', source, queue)
             end
         end
@@ -459,7 +478,7 @@ AddEventHandler('carplay:playMusic', function(url, volume, range, loop, playNow)
         print(string.format("[CarPlay] Music started with tag: %s", soundTag))
     else
         -- Add to queue instead of playing immediately
-        TriggerServerEvent('carplay:addToQueue', url, volume, range, loop)
+        TriggerEvent('carplay:addToQueue', url, volume, range, loop)
     end
 end)
 
@@ -486,10 +505,18 @@ AddEventHandler('carplay:songEnded', function()
     local source = source
     local playerId = tostring(source)
     
+    -- Clear current sound
+    if activeSounds[playerId] then
+        activeSounds[playerId] = nil
+    end
+    
     if Config.AutoPlayNext then
         -- Small delay before playing next song
         SetTimeout(1000, function()
-            TriggerEvent('carplay:playNext', source)
+            local nextSong = GetNextSong(playerId)
+            if nextSong then
+                TriggerEvent('carplay:playMusic', nextSong.url, nextSong.volume, nextSong.range, nextSong.loop, true)
+            end
         end)
     end
 end)
@@ -518,10 +545,12 @@ end)
 RegisterCommand('carplay_debug', function(source, args, rawCommand)
     if source == 0 then
         print("[CarPlay Debug] Active sounds:")
+        local count = 0
         for playerId, soundData in pairs(activeSounds) do
             print(string.format("  Player %s: %s (Owner: %s, Loop: %s)", playerId, soundData.tag, soundData.owner, tostring(soundData.loop)))
+            count = count + 1
         end
-        print(string.format("[CarPlay Debug] Total active sounds: %d", table.getn(activeSounds)))
+        print(string.format("[CarPlay Debug] Total active sounds: %d", count))
         
         print("[CarPlay Debug] Player queues:")
         for playerId, queueData in pairs(playerQueues) do

@@ -184,10 +184,12 @@ body.hidden {
   background: transparent !important;
 }
 
-/* Scrolling Text Containers */
+/* Fixed Scrolling Text Containers */
 .track-title-container,
 .track-artist-container {
   width: 100%;
+  max-width: 350px; /* Set a max width for better control */
+  margin: 0 auto; /* Center the containers */
   overflow: hidden;
   position: relative;
   background: transparent !important;
@@ -207,25 +209,24 @@ body.hidden {
   display: inline-block;
   white-space: nowrap;
   background: transparent !important;
-  transition: transform 0.3s ease;
+  transition: none;
+  --scroll-distance: 0px;
 }
 
 .scrolling-text.scroll {
-  animation: scroll-text 8s linear infinite;
+  animation: scroll-text 10s ease-in-out infinite;
 }
 
+/* Fixed scrolling animation */
 @keyframes scroll-text {
-  0% {
+  0%, 20% {
     transform: translateX(0);
   }
-  25% {
-    transform: translateX(0);
-  }
-  75% {
-    transform: translateX(calc(-100% + 300px));
+  45%, 75% {
+    transform: translateX(var(--scroll-distance));
   }
   100% {
-    transform: translateX(calc(-100% + 300px));
+    transform: translateX(0);
   }
 }
 
@@ -407,7 +408,7 @@ body.hidden {
 
 .album-art {
   width: 240px;
-  height: 200px; /* Adjusted height to match original image */
+  height: 200px;
   border-radius: 20px;
   overflow: hidden;
   box-shadow: 0 12px 35px rgba(0, 0, 0, 0.5);
@@ -502,34 +503,32 @@ body.hidden {
 
 .control-slider {
   width: 100%;
-  height: 6px; /* Smaller slider height */
+  height: 6px;
   background: rgba(255, 255, 255, 0.2) !important;
-  border-radius: 3px; /* Smaller border-radius */
+  border-radius: 3px;
   outline: none;
   -webkit-appearance: none;
 }
 
 .control-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 16px; /* Smaller thumb size */
-  height: 16px; /* Smaller thumb size */
+  width: 16px;
+  height: 16px;
   background: #0a84ff !important;
   border-radius: 50%;
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(10, 132, 255, 0.5); /* Smaller shadow */
+  box-shadow: 0 2px 6px rgba(10, 132, 255, 0.5);
 }
 
 .control-slider::-moz-range-thumb {
-  width: 16px; /* Smaller thumb size */
-  height: 16px; /* Smaller thumb size */
+  width: 16px;
+  height: 16px;
   background: #0a84ff !important;
   border-radius: 50%;
   cursor: pointer;
   border: none;
-  box-shadow: 0 2px 6px rgba(10, 132, 255, 0.5); /* Smaller shadow */
+  box-shadow: 0 2px 6px rgba(10, 132, 255, 0.5);
 }
-
-/* Removed checkbox-label and control-checkbox styles as they are no longer used */
 
 .action-buttons {
   display: flex;
@@ -554,8 +553,6 @@ body.hidden {
   background: rgba(255, 255, 255, 0.2) !important;
   transform: translateY(-2px);
 }
-
-/* Removed stop-btn styles as it is no longer used */
 
 /* Bottom Section - Queue */
 .bottom-section {
@@ -852,7 +849,7 @@ body.hidden {
   border-radius: 50%;
   cursor: pointer;
   border: none;
-  box-shadow: 0 44px 12px rgba(10, 132, 255, 0.5);
+  box-shadow: 0 4px 12px rgba(10, 132, 255, 0.5);
 }
 
 .modal-actions {

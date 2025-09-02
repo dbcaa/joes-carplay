@@ -42,8 +42,8 @@ class CarPlayController {
     // Input elements
     this.quickUrlInput = document.getElementById("quickUrlInput")
     this.quickPlayBtn = document.getElementById("quickPlayBtn")
-    this.settingsBtn = document.getElementById("settingsBtn")
-
+/*     this.settingsBtn = document.getElementById("settingsBtn")
+ */
     // Main control elements
     this.volumeSlider = document.getElementById("volumeSlider")
     this.volumeValue = document.getElementById("volumeValue")
@@ -81,13 +81,13 @@ class CarPlayController {
 
     // Quick controls
     this.quickPlayBtn.addEventListener("click", () => this.quickPlay())
-    this.settingsBtn.addEventListener("click", () => this.openSettings())
-
-    // Main controls
+/*     this.settingsBtn.addEventListener("click", () => this.openSettings())
+ */
+    // Main controls - Fixed volume update to be immediate
     this.volumeSlider.addEventListener("input", (e) => {
       this.volume = Number.parseInt(e.target.value)
       this.volumeValue.textContent = this.volume
-      this.fetch("setVolume", { volume: this.volume }) // Live update volume
+      this.fetch("setVolume", { volume: this.volume }).catch(console.error)
     })
 
     // Modal controls
@@ -168,7 +168,7 @@ class CarPlayController {
     }
   }
 
-  togglePlayPause() {
+/*   togglePlayPause() {
     if (this.isPlaying) {
       this.pauseMusic()
     } else {
@@ -178,7 +178,7 @@ class CarPlayController {
         this.openSettings()
       }
     }
-  }
+  }  NOT NEEDED AS ADVANCED SETTINGS ARE NOTUSED   */  
 
   quickPlay() {
     const url = this.quickUrlInput.value.trim()
@@ -284,8 +284,6 @@ class CarPlayController {
       })
   }
 
-  // The stopMusic function is still here but not tied to a button.
-  // It can be called by other logic if a full sound destruction is needed.
   stopMusic() {
     this.fetch("stopMusic", {})
       .then((response) => {
@@ -440,7 +438,7 @@ class CarPlayController {
 
     this.queue.songs.forEach((song, index) => {
       const queueItem = document.createElement("div")
-      queueItem.className = `queue-item ${index + 1 === this.queue.currentIndex ? "current" : ""}`
+      queueItem.className = `queue-item ${index === this.queue.currentIndex ? "current" : ""}`
 
       queueItem.innerHTML = `
         <div class="queue-song-info">
@@ -448,7 +446,7 @@ class CarPlayController {
           <div class="queue-song-artist">${this.truncateText(song.artist, 30)}</div>
         </div>
         <div class="queue-controls">
-          <button class="queue-remove-btn" onclick="window.carplay.removeFromQueue(${index + 1})">×</button>
+          <button class="queue-remove-btn" onclick="window.carplay.removeFromQueue(${index})">×</button>
         </div>
       `
 
@@ -461,21 +459,29 @@ class CarPlayController {
     return text.substring(0, maxLength - 3) + "..."
   }
 
+  // Fixed scrolling text function
   updateScrollingText(element, text) {
-    element.textContent = text
+    if (!element || !element.parentElement) return
 
-    // Remove existing scroll class
+    element.textContent = text
     element.classList.remove("scroll")
 
-    // Check if text overflows
+    // Force reflow to get accurate measurements
+    element.offsetWidth
+
     setTimeout(() => {
-      const containerWidth = element.parentElement.offsetWidth
+      const containerWidth = element.parentElement.offsetWidth - 20 // Account for padding
       const textWidth = element.scrollWidth
 
       if (textWidth > containerWidth) {
+        // Calculate the distance to scroll
+        const scrollDistance = textWidth - containerWidth
+        
+        // Update CSS custom property for this specific element
+        element.style.setProperty('--scroll-distance', `-${scrollDistance}px`)
         element.classList.add("scroll")
       }
-    }, 100)
+    }, 50)
   }
 
   updateShuffleButton() {
@@ -509,9 +515,9 @@ class CarPlayController {
 
     const rect = this.progressBar.getBoundingClientRect()
     const clickX = e.clientX - rect.left
-    const percentage = clickX / rect.width
+    const percentage = Math.max(0, Math.min(clickX / rect.width, 1))
 
-    const seekTime = Math.max(0, Math.min(percentage * this.duration, this.duration))
+    const seekTime = percentage * this.duration
 
     this.fetch("seekMusic", { time: seekTime })
       .then((response) => {
@@ -602,7 +608,7 @@ class CarPlayController {
   }
 
   updateProgressDisplay() {
-    const percentage = (this.progress / this.duration) * 100
+    const percentage = Math.max(0, Math.min((this.progress / this.duration) * 100, 100))
     this.progressFill.style.width = `${percentage}%`
     this.progressHandle.style.left = `${percentage}%`
 
@@ -631,7 +637,7 @@ class CarPlayController {
   // NUI Communication
   async fetch(endpoint, data) {
     try {
-      const resourceName = window.GetParentResourceName ? window.GetParentResourceName() : "modern-carplay"
+      const resourceName = window.GetParentResourceName ? window.GetParentResourceName() : "joes-carplay"
       const response = await fetch(`https://${resourceName}/${endpoint}`, {
         method: "POST",
         headers: {
@@ -665,6 +671,25 @@ class CarPlayController {
           this.updateQueueDisplay()
           this.updateShuffleButton()
           this.updateRepeatButton()
+        }
+        if (data.currentState && data.currentState.songInfo) {
+          this.currentSong = data.currentState.songInfo
+          this.isPlaying = data.currentState.isPlaying
+          this.progress = data.currentState.songInfo.currentTime || 0
+          this.duration = data.currentState.songInfo.duration || 180
+          
+          // Update display
+          this.updateScrollingText(this.trackTitle, this.currentSong.title || "No Music Playing")
+          this.updateScrollingText(this.trackArtist, this.currentSong.artist || "Select a song to begin")
+          this.updatePlayPauseButton()
+          this.updateProgressDisplay()
+          
+          // Update volume slider to match current volume
+          if (data.currentState.songInfo.volume !== undefined) {
+            this.volume = data.currentState.songInfo.volume
+            this.volumeSlider.value = this.volume
+            this.volumeValue.textContent = this.volume
+          }
         }
         break
 
@@ -723,7 +748,6 @@ class CarPlayController {
 
         this.updatePlayPauseButton()
         this.updateProgressDisplay()
-        // Removed startProgressSimulation as it's now driven by NUI updates
         break
 
       case "musicStopped":
@@ -738,7 +762,6 @@ class CarPlayController {
 
         this.updatePlayPauseButton()
         this.updateProgressDisplay()
-        // Removed stopProgressSimulation as it's now driven by NUI updates
         break
 
       case "musicPaused":

@@ -54,7 +54,6 @@ function OpenCarPlay()
     
     -- Properly set NUI focus and cursor
     SetNuiFocus(true, true)
-    SetNuiFocusKeepInput(false)
     
     -- Disable HUD components that might interfere
     DisplayRadar(false)
@@ -67,13 +66,15 @@ function OpenCarPlay()
     local songInfo = nil
     
     if currentSoundTag and exports.xsound:soundExists(currentSoundTag) then
-        playingState = exports.xsound:isPlaying(currentSoundTag)
+        playingState = not exports.xsound:isPaused(currentSoundTag)
         local soundInfo = exports.xsound:getInfo(currentSoundTag)
         if soundInfo then
             songInfo = {
+                title = soundInfo.title or "Current Song",
+                artist = soundInfo.artist or "Unknown Artist",
                 isPlaying = playingState,
                 isPaused = exports.xsound:isPaused(currentSoundTag),
-                volume = math.floor(soundInfo.volume * 100),
+                volume = math.floor((soundInfo.volume or 0.5) * 100),
                 currentTime = exports.xsound:getTimeStamp(currentSoundTag) or 0,
                 duration = exports.xsound:getMaxDuration(currentSoundTag) or 180,
                 url = exports.xsound:getLink(currentSoundTag) or ""
@@ -105,7 +106,6 @@ function CloseCarPlay()
     
     -- Properly restore NUI focus
     SetNuiFocus(false, false)
-    SetNuiFocusKeepInput(false)
     
     -- Re-enable HUD components
     DisplayRadar(true)
@@ -167,11 +167,13 @@ RegisterNUICallback('playNext', function(data, cb)
     cb({success = true})
 end)
 
--- NUI Callback: Remove from Queue
+-- NUI Callback: Remove from Queue (Fixed indexing)
 RegisterNUICallback('removeFromQueue', function(data, cb)
     local index = data.index
     if index then
-        TriggerServerEvent('carplay:removeFromQueue', index)
+        -- Convert from 0-based to 1-based indexing
+        local serverIndex = index + 1
+        TriggerServerEvent('carplay:removeFromQueue', serverIndex)
         cb({success = true})
     else
         cb({success = false, error = "Invalid index"})
@@ -240,14 +242,16 @@ RegisterNUICallback('seekMusic', function(data, cb)
     end
 end)
 
--- NUI Callback: Set Volume
+-- NUI Callback: Set Volume (Fixed to work properly)
 RegisterNUICallback('setVolume', function(data, cb)
     if currentSoundTag and exports.xsound:soundExists(currentSoundTag) then
         local volume = (data.volume or 50) / 100
         exports.xsound:setVolumeMax(currentSoundTag, volume)
         cb({success = true})
     else
-        cb({success = false, error = "No music playing"})
+        -- Still return success even if no music is playing
+        -- This allows the UI to update the volume setting
+        cb({success = true})
     end
 end)
 
@@ -272,7 +276,7 @@ AddEventHandler('carplay:startMusic', function(soundTag, url, volume, range, loo
                 print(string.format("[CarPlay] Music started: %s", soundTag))
                 currentSoundTag = soundTag
                 
-                -- Send real-time info to UI
+                -- Start real-time progress tracking
                 CreateThread(function()
                     while exports.xsound:soundExists(soundTag) and exports.xsound:isPlaying(soundTag) do
                         if isCarPlayOpen then
@@ -287,13 +291,22 @@ AddEventHandler('carplay:startMusic', function(soundTag, url, volume, range, loo
                                 isPaused = isPaused
                             })
                         end
+                        
+                        -- Update position for 3D sound
+                        if DoesEntityExist(vehicle) then
+                            local newCoords = GetEntityCoords(vehicle)
+                            exports.xsound:Position(soundTag, newCoords)
+                        end
+                        
                         Wait(1000)
                     end
                 end)
             end,
             onPlayEnd = function()
                 print(string.format("[CarPlay] Music ended: %s", soundTag))
-                currentSoundTag = nil
+                if currentSoundTag == soundTag then
+                    currentSoundTag = nil
+                end
                 if isCarPlayOpen then
                     SendNUIMessage({
                         type = 'musicStopped'
@@ -337,7 +350,7 @@ AddEventHandler('carplay:startMusic', function(soundTag, url, volume, range, loo
             owner = owner
         }
         
-        -- Update position thread
+        -- Position update thread
         CreateThread(function()
             while activeMusicTags[soundTag] and exports.xsound:soundExists(soundTag) do
                 if DoesEntityExist(vehicle) then
@@ -455,6 +468,9 @@ CreateThread(function()
             if vehicle == 0 then
                 CloseCarPlay()
                 currentVehicle = nil
+            elseif vehicle ~= currentVehicle then
+                -- Vehicle changed, update current vehicle
+                currentVehicle = vehicle
             end
         end
     end
@@ -468,5 +484,10 @@ AddEventHandler('onResourceStop', function(resourceName)
         end
         activeMusicTags = {}
         currentSoundTag = nil
+        
+        -- Close CarPlay interface if open
+        if isCarPlayOpen then
+            CloseCarPlay()
+        end
     end
 end)
