@@ -180,6 +180,20 @@ class CarPlayController {
     }
   }  NOT NEEDED AS ADVANCED SETTINGS ARE NOTUSED   */  
 
+	togglePlayPause() {
+  if (this.isPlaying) {
+    this.pauseMusic()
+  } else {
+    if (this.currentSong) {
+      this.resumeMusic()
+    } else {
+      this.showError("No song is currently loaded")
+    }
+  }
+}
+
+
+
   quickPlay() {
     const url = this.quickUrlInput.value.trim()
     if (!url) {
@@ -806,17 +820,21 @@ class CarPlayController {
   }
 }
 
+let carplay
+
 // Initialize CarPlay when DOM is loaded
 document.addEventListener("DOMContentLoaded", () => {
-  const carplay = new CarPlayController()
+  if (!carplay) {
+    carplay = new CarPlayController()
 
-  // Listen for messages from the client
-  window.addEventListener("message", (event) => {
-    carplay.handleMessage(event.data)
-  })
+    // Listen for messages from the client
+    window.addEventListener("message", (event) => {
+      carplay.handleMessage(event.data)
+    })
 
-  // Make carplay globally accessible for debugging
-  window.carplay = carplay
+    // Make carplay globally accessible for debugging
+    window.carplay = carplay
+  }
 })
 
 // Add CSS animations
