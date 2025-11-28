@@ -18,4 +18,4 @@ This is a work in progress. Please report any issues you encounter.
 
 In use:
 
-<img width="1918" height="1079" alt="image" src="https://github.com/user-attachments/assets/a1fdd7e1-636b-4edd-94bb-3a1e4146e1c7" />
+<img width="1328" height="766" alt="image" src="https://github.com/user-attachments/assets/1e23d9e1-7054-4672-b869-12dc19bdefc8" />
