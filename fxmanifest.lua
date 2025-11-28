@@ -4,7 +4,7 @@ lua54 'yes'
 
 author 'dbca.'
 description 'A complete CarPlay-inspired music system for FiveM with xsound integration'
-version '1.0.0'
+version '1.1.0'
 
 shared_scripts {
     'shared/config.lua'
