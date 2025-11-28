@@ -39,20 +39,20 @@ class CarPlayController {
     this.progressFill = document.getElementById("progressFill")
     this.progressHandle = document.getElementById("progressHandle")
 
-    // Input elements
-    this.quickUrlInput = document.getElementById("quickUrlInput")
+    // Input elements (quick open button exists — opens mini modal if no inline quick input)
+    this.quickUrlInput = document.getElementById("quickUrlInput") // optional
     this.quickPlayBtn = document.getElementById("quickPlayBtn")
-/*     this.settingsBtn = document.getElementById("settingsBtn")
- */
+
     // Main control elements
     this.volumeSlider = document.getElementById("volumeSlider")
     this.volumeValue = document.getElementById("volumeValue")
 
-    // Modal elements
-    this.settingsModal = document.getElementById("settingsModal")
+    // Modal elements (we use the mini modal)
+    // script logic expects urlInput, playBtn, addToQueueBtn and modalCloseBtn, so provide them
+    this.settingsModal = document.getElementById("settingsModal") || document.getElementById("miniModal")
     this.modalCloseBtn = document.getElementById("modalCloseBtn")
     this.urlInput = document.getElementById("urlInput")
-    this.rangeSlider = document.getElementById("rangeSlider")
+    this.rangeSlider = document.getElementById("rangeSlider") // optional (we don't use it by default)
     this.rangeValue = document.getElementById("rangeValue")
     this.playBtn = document.getElementById("playBtn")
     this.addToQueueBtn = document.getElementById("addToQueueBtn")
@@ -73,33 +73,51 @@ class CarPlayController {
   }
 
   bindEvents() {
-    // Playback controls
-    this.playPauseBtn.addEventListener("click", () => this.togglePlayPause())
-    this.previousBtn.addEventListener("click", () => this.previousTrack())
-    this.nextBtn.addEventListener("click", () => this.nextTrack())
-    this.closeBtn.addEventListener("click", () => this.close())
+    // Playback controls: guard each element
+    if (this.playPauseBtn) this.playPauseBtn.addEventListener("click", () => this.togglePlayPause())
+    if (this.previousBtn) this.previousBtn.addEventListener("click", () => this.previousTrack())
+    if (this.nextBtn) this.nextBtn.addEventListener("click", () => this.nextTrack())
+    if (this.closeBtn) this.closeBtn.addEventListener("click", () => this.close())
 
-    // Quick controls
-    this.quickPlayBtn.addEventListener("click", () => this.quickPlay())
-/*     this.settingsBtn.addEventListener("click", () => this.openSettings())
- */
-    // Main controls - Fixed volume update to be immediate
-    this.volumeSlider.addEventListener("input", (e) => {
-      this.volume = Number.parseInt(e.target.value)
-      this.volumeValue.textContent = this.volume
-      this.fetch("setVolume", { volume: this.volume }).catch(console.error)
-    })
+    // Quick controls: if a quick URL input exists, use it; otherwise quickPlayBtn opens modal
+    if (this.quickPlayBtn) {
+      if (this.quickUrlInput) {
+        this.quickPlayBtn.addEventListener("click", () => this.quickPlay())
+      } else {
+        // open mini modal if user clicks the quick button
+        this.quickPlayBtn.addEventListener("click", () => this.openSettings())
+      }
+    }
 
-    // Modal controls
-    this.modalCloseBtn.addEventListener("click", () => this.closeSettings())
-    this.playBtn.addEventListener("click", () => this.playMusic())
-    this.addToQueueBtn.addEventListener("click", () => this.addToQueue())
+    // Volume slider (optional)
+    if (this.volumeSlider) {
+      this.volumeSlider.addEventListener("input", (e) => {
+        this.volume = Number.parseInt(e.target.value)
+        if (this.volumeValue) this.volumeValue.textContent = this.volume
+        this.fetch("setVolume", { volume: this.volume }).catch(console.error)
+      })
+    }
 
-    // Range slider
-    this.rangeSlider.addEventListener("input", (e) => {
-      this.range = Number.parseInt(e.target.value)
-      this.rangeValue.textContent = this.range
-    })
+    // Modal controls (mini modal)
+    if (this.modalCloseBtn) {
+      this.modalCloseBtn.addEventListener("click", () => this.closeSettings())
+    }
+
+    if (this.playBtn) {
+      this.playBtn.addEventListener("click", () => this.playMusic())
+    }
+
+    if (this.addToQueueBtn) {
+      this.addToQueueBtn.addEventListener("click", () => this.addToQueue())
+    }
+
+    // Range slider (optional) — guarded
+    if (this.rangeSlider) {
+      this.rangeSlider.addEventListener("input", (e) => {
+        this.range = Number.parseInt(e.target.value)
+        if (this.rangeValue) this.rangeValue.textContent = this.range
+      })
+    }
 
     // Queue controls
     if (this.clearQueueBtn) {
@@ -112,37 +130,46 @@ class CarPlayController {
       this.repeatBtn.addEventListener("click", () => this.cycleRepeatMode())
     }
 
-    // Progress bar
-    this.progressBar.addEventListener("click", (e) => this.seekTo(e))
+    // Progress bar (guard)
+    if (this.progressBar) {
+      this.progressBar.addEventListener("click", (e) => this.seekTo(e))
+    }
 
     // Keyboard shortcuts
     document.addEventListener("keydown", (e) => this.handleKeyboard(e))
 
     // URL input enter key
-    this.quickUrlInput.addEventListener("keypress", (e) => {
-      if (e.key === "Enter") {
-        this.quickPlay()
-      }
-    })
+    if (this.quickUrlInput) {
+      this.quickUrlInput.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+          this.quickPlay()
+        }
+      })
+    }
 
-    this.urlInput.addEventListener("keypress", (e) => {
-      if (e.key === "Enter") {
-        this.smartPlay()
-      }
-    })
+    if (this.urlInput) {
+      this.urlInput.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+          // Smart: if modal present, use smartPlay (behaves like user's choice C)
+          this.smartPlay()
+        }
+      })
+    }
 
-    // Modal overlay click
-    this.settingsModal.addEventListener("click", (e) => {
-      if (e.target === this.settingsModal) {
-        this.closeSettings()
-      }
-    })
+    // Modal overlay click (for mini modal we don't rely on overlay container; guard anyway)
+    if (this.settingsModal) {
+      this.settingsModal.addEventListener("click", (e) => {
+        if (e.target === this.settingsModal) {
+          this.closeSettings()
+        }
+      })
+    }
   }
 
   handleKeyboard(e) {
     switch (e.key) {
       case "Escape":
-        if (this.settingsModal.classList.contains("active")) {
+        if (this.settingsModal && this.settingsModal.classList && this.settingsModal.classList.contains("active")) {
           this.closeSettings()
         } else {
           this.close()
@@ -153,7 +180,8 @@ class CarPlayController {
         this.togglePlayPause()
         break
       case "Enter":
-        if (!this.settingsModal.classList.contains("active")) {
+        if (!(this.settingsModal && this.settingsModal.classList && this.settingsModal.classList.contains("active"))) {
+          // open mini modal if not open (keeps behavior consistent with before)
           this.openSettings()
         }
         break
@@ -168,43 +196,28 @@ class CarPlayController {
     }
   }
 
-/*   togglePlayPause() {
+  togglePlayPause() {
     if (this.isPlaying) {
       this.pauseMusic()
     } else {
       if (this.currentSong) {
         this.resumeMusic()
       } else {
-        this.openSettings()
+        this.showError("No song is currently loaded")
       }
     }
-  }  NOT NEEDED AS ADVANCED SETTINGS ARE NOTUSED   */  
-
-	togglePlayPause() {
-  if (this.isPlaying) {
-    this.pauseMusic()
-  } else {
-    if (this.currentSong) {
-      this.resumeMusic()
-    } else {
-      this.showError("No song is currently loaded")
-    }
   }
-}
-
-
 
   quickPlay() {
-    const url = this.quickUrlInput.value.trim()
+    const url = (this.quickUrlInput && this.quickUrlInput.value) ? this.quickUrlInput.value.trim() : ""
     if (!url) {
       this.showError("Please enter a YouTube URL")
       return
     }
 
-    // Smart play logic: if music is playing, add to queue, otherwise play now
     const playNow = !this.isPlaying
     this.playMusicWithUrl(url, playNow)
-    this.quickUrlInput.value = ""
+    if (this.quickUrlInput) this.quickUrlInput.value = ""
 
     if (!playNow) {
       this.showNotification("Added to queue")
@@ -212,16 +225,15 @@ class CarPlayController {
   }
 
   smartPlay() {
-    const url = this.urlInput.value.trim()
+    const url = this.urlInput ? this.urlInput.value.trim() : ""
     if (!url) {
       this.showError("Please enter a YouTube URL")
       return
     }
 
-    // Smart play logic: if music is playing, add to queue, otherwise play now
     const playNow = !this.isPlaying
     this.playMusicWithUrl(url, playNow)
-    this.urlInput.value = ""
+    if (this.urlInput) this.urlInput.value = ""
     this.closeSettings()
 
     if (!playNow) {
@@ -230,73 +242,29 @@ class CarPlayController {
   }
 
   playMusic() {
-    const url = this.urlInput.value.trim()
+    const url = this.urlInput ? this.urlInput.value.trim() : ""
     if (!url) {
       this.showError("Please enter a YouTube URL")
       return
     }
 
-    this.playMusicWithUrl(url, true) // Always play immediately from modal
-    this.urlInput.value = ""
+    this.playMusicWithUrl(url, true)
+    if (this.urlInput) this.urlInput.value = ""
     this.closeSettings()
   }
 
   addToQueue() {
-    const url = this.urlInput.value.trim()
+    const url = this.urlInput ? this.urlInput.value.trim() : ""
     if (!url) {
       this.showError("Please enter a YouTube URL")
       return
     }
 
-    this.playMusicWithUrl(url, false) // Always add to queue
-    this.urlInput.value = ""
+    this.playMusicWithUrl(url, false)
+    if (this.urlInput) this.urlInput.value = ""
     this.closeSettings()
   }
 
-  playMusicWithUrl(url, playNow = true) {
-    // Show loading state if playing now
-    if (playNow) {
-      this.trackTitle.textContent = "Loading..."
-      this.trackArtist.textContent = "Preparing audio stream..."
-      this.trackStatus.textContent = "Connecting to YouTube..."
-    }
-
-    const endpoint = playNow ? "playMusic" : "addToQueue"
-
-    this.fetch(endpoint, {
-      url: url,
-      volume: this.volume,
-      range: this.range,
-      loop: false, // Loop is handled by repeat mode, not individual song loop
-      playNow: playNow,
-    })
-      .then((response) => {
-        if (response.success) {
-          console.log(`${endpoint} request sent successfully`)
-          if (!playNow) {
-            this.showNotification("Added to queue")
-          }
-        } else {
-          this.showError(response.error || `Failed to ${playNow ? "play music" : "add to queue"}`)
-          // Reset loading state on error
-          if (playNow) {
-            this.trackTitle.textContent = "No Music Playing"
-            this.trackArtist.textContent = "Select a song to begin"
-            this.trackStatus.textContent = ""
-          }
-        }
-      })
-      .catch((error) => {
-        console.error(`Error ${playNow ? "playing music" : "adding to queue"}:`, error)
-        this.showError("Failed to communicate with game")
-        // Reset loading state on error
-        if (playNow) {
-          this.trackTitle.textContent = "No Music Playing"
-          this.trackArtist.textContent = "Select a song to begin"
-          this.trackStatus.textContent = ""
-        }
-      })
-  }
 
   stopMusic() {
     this.fetch("stopMusic", {})
@@ -312,6 +280,53 @@ class CarPlayController {
         this.showError("Failed to communicate with game")
       })
   }
+  
+    playMusicWithUrl(url, playNow = true) {
+    // Show loading state if playing now
+    if (playNow) {
+      if (this.trackTitle) this.trackTitle.textContent = "Loading..."
+      if (this.trackArtist) this.trackArtist.textContent = "Preparing audio stream..."
+      if (this.trackStatus) this.trackStatus.textContent = "Connecting to YouTube..."
+    }
+
+    const endpoint = playNow ? "playMusic" : "addToQueue"
+
+    this.fetch(endpoint, {
+      url: url,
+      volume: this.volume,
+      range: this.range,
+      loop: false,
+      playNow: playNow,
+    })
+      .then((response) => {
+        if (response.success) {
+          console.log(`${endpoint} request sent successfully`)
+          if (!playNow) {
+            this.showNotification("Added to queue")
+          }
+        } else {
+          this.showError(response.error || `Failed to ${playNow ? "play music" : "add to queue"}`)
+
+          // Reset display on error
+          if (playNow) {
+            if (this.trackTitle) this.trackTitle.textContent = "No Music Playing"
+            if (this.trackArtist) this.trackArtist.textContent = "Select a song to begin"
+            if (this.trackStatus) this.trackStatus.textContent = ""
+          }
+        }
+      })
+      .catch((error) => {
+        console.error(`Error ${playNow ? "playing music" : "adding to queue"}:`, error)
+        this.showError("Failed to communicate with game")
+
+        if (playNow) {
+          if (this.trackTitle) this.trackTitle.textContent = "No Music Playing"
+          if (this.trackArtist) this.trackArtist.textContent = "Select a song to begin"
+          if (this.trackStatus) this.trackStatus.textContent = ""
+        }
+      })
+  }
+
 
   pauseMusic() {
     this.fetch("pauseMusic", {})
@@ -344,8 +359,6 @@ class CarPlayController {
   }
 
   previousTrack() {
-    // For now, just stop current music
-    // You could implement previous song logic here
     this.stopMusic()
   }
 
@@ -434,7 +447,6 @@ class CarPlayController {
 
     this.queueList.innerHTML = ""
 
-    // Update queue count
     if (this.queueCount) {
       const count = this.queue.songs.length
       this.queueCount.textContent = `${count} song${count !== 1 ? "s" : ""}`
@@ -443,9 +455,7 @@ class CarPlayController {
     if (this.queue.songs.length === 0) {
       const emptyItem = document.createElement("div")
       emptyItem.className = "queue-item empty"
-      emptyItem.innerHTML = `
-        <span>No songs in queue</span>
-      `
+      emptyItem.innerHTML = `<span>No songs in queue</span>`
       this.queueList.appendChild(emptyItem)
       return
     }
@@ -473,25 +483,20 @@ class CarPlayController {
     return text.substring(0, maxLength - 3) + "..."
   }
 
-  // Fixed scrolling text function
   updateScrollingText(element, text) {
     if (!element || !element.parentElement) return
 
     element.textContent = text
     element.classList.remove("scroll")
 
-    // Force reflow to get accurate measurements
     element.offsetWidth
 
     setTimeout(() => {
-      const containerWidth = element.parentElement.offsetWidth - 20 // Account for padding
+      const containerWidth = element.parentElement.offsetWidth - 20
       const textWidth = element.scrollWidth
 
       if (textWidth > containerWidth) {
-        // Calculate the distance to scroll
         const scrollDistance = textWidth - containerWidth
-        
-        // Update CSS custom property for this specific element
         element.style.setProperty('--scroll-distance', `-${scrollDistance}px`)
         element.classList.add("scroll")
       }
@@ -516,16 +521,12 @@ class CarPlayController {
     this.repeatBtn.classList.remove("repeat-none", "repeat-one", "repeat-all")
     this.repeatBtn.classList.add(`repeat-${this.queue.repeat_mode}`)
 
-    const titles = {
-      none: "Repeat: Off",
-      one: "Repeat: One",
-      all: "Repeat: All",
-    }
+    const titles = { none: "Repeat: Off", one: "Repeat: One", all: "Repeat: All" }
     this.repeatBtn.title = titles[this.queue.repeat_mode] || "Repeat: Off"
   }
 
   seekTo(e) {
-    if (!this.currentSong) return
+    if (!this.currentSong || !this.progressBar) return
 
     const rect = this.progressBar.getBoundingClientRect()
     const clickX = e.clientX - rect.left
@@ -546,12 +547,18 @@ class CarPlayController {
   }
 
   openSettings() {
-    this.settingsModal.classList.add("active")
-    this.urlInput.focus()
+    if (this.settingsModal && this.settingsModal.classList) {
+      this.settingsModal.classList.add("active")
+      this.settingsModal.setAttribute("aria-hidden", "false")
+    }
+    if (this.urlInput) this.urlInput.focus()
   }
 
   closeSettings() {
-    this.settingsModal.classList.remove("active")
+    if (this.settingsModal && this.settingsModal.classList) {
+      this.settingsModal.classList.remove("active")
+      this.settingsModal.setAttribute("aria-hidden", "true")
+    }
   }
 
   close() {
@@ -573,16 +580,11 @@ class CarPlayController {
   }
 
   showToast(message, type = "info") {
-    // Create a simple toast notification
     const toast = document.createElement("div")
     toast.className = `toast toast-${type}`
     toast.textContent = message
 
-    const colors = {
-      error: "#ff3b30",
-      success: "#34c759",
-      info: "#007aff",
-    }
+    const colors = { error: "#ff3b30", success: "#34c759", info: "#007aff" }
 
     toast.style.cssText = `
       position: fixed;
@@ -612,6 +614,7 @@ class CarPlayController {
   }
 
   updatePlayPauseButton() {
+    if (!this.playIcon || !this.pauseIcon) return
     if (this.isPlaying) {
       this.playIcon.style.display = "none"
       this.pauseIcon.style.display = "block"
@@ -622,12 +625,16 @@ class CarPlayController {
   }
 
   updateProgressDisplay() {
-    const percentage = Math.max(0, Math.min((this.progress / this.duration) * 100, 100))
-    this.progressFill.style.width = `${percentage}%`
-    this.progressHandle.style.left = `${percentage}%`
-
-    this.currentTimeDisplay.textContent = this.formatTime(this.progress)
-    this.totalTimeDisplay.textContent = this.formatTime(this.duration)
+    if (this.progressFill) {
+      const percentage = Math.max(0, Math.min((this.progress / this.duration) * 100, 100))
+      this.progressFill.style.width = `${percentage}%`
+    }
+    if (this.progressHandle) {
+      const percentage = Math.max(0, Math.min((this.progress / this.duration) * 100, 100))
+      this.progressHandle.style.left = `${percentage}%`
+    }
+    if (this.currentTimeDisplay) this.currentTimeDisplay.textContent = this.formatTime(this.progress)
+    if (this.totalTimeDisplay) this.totalTimeDisplay.textContent = this.formatTime(this.duration)
   }
 
   formatTime(seconds) {
@@ -640,26 +647,22 @@ class CarPlayController {
     const now = new Date()
     const hours = now.getHours().toString().padStart(2, "0")
     const minutes = now.getMinutes().toString().padStart(2, "0")
-    this.currentTime.textContent = `${hours}:${minutes}`
+    if (this.currentTime) this.currentTime.textContent = `${hours}:${minutes}`
   }
 
   startTimeUpdate() {
     this.updateTime()
-    setInterval(() => this.updateTime(), 60000) // Update every minute
+    setInterval(() => this.updateTime(), 60000)
   }
 
-  // NUI Communication
   async fetch(endpoint, data) {
     try {
       const resourceName = window.GetParentResourceName ? window.GetParentResourceName() : "joes-carplay"
       const response = await fetch(`https://${resourceName}/${endpoint}`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       })
-
       return await response.json()
     } catch (error) {
       console.error(`Error in ${endpoint}:`, error)
@@ -667,49 +670,54 @@ class CarPlayController {
     }
   }
 
-  // Handle messages from client
   handleMessage(data) {
     switch (data.type) {
       case "openCarPlay":
-        document.body.classList.remove("hidden")
-        if (data.config) {
-          this.volume = data.config.volume || 50
-          this.range = data.config.range || 15
-          this.volumeSlider.value = this.volume
-          this.rangeSlider.value = this.range
-          this.volumeValue.textContent = this.volume
-          this.rangeValue.textContent = this.range
-        }
-        if (data.queue) {
-          this.queue = data.queue
-          this.updateQueueDisplay()
-          this.updateShuffleButton()
-          this.updateRepeatButton()
-        }
-        if (data.currentState && data.currentState.songInfo) {
-          this.currentSong = data.currentState.songInfo
-          this.isPlaying = data.currentState.isPlaying
-          this.progress = data.currentState.songInfo.currentTime || 0
-          this.duration = data.currentState.songInfo.duration || 180
-          
-          // Update display
-          this.updateScrollingText(this.trackTitle, this.currentSong.title || "No Music Playing")
-          this.updateScrollingText(this.trackArtist, this.currentSong.artist || "Select a song to begin")
-          this.updatePlayPauseButton()
-          this.updateProgressDisplay()
-          
-          // Update volume slider to match current volume
-          if (data.currentState.songInfo.volume !== undefined) {
-            this.volume = data.currentState.songInfo.volume
-            this.volumeSlider.value = this.volume
-            this.volumeValue.textContent = this.volume
+        {
+          // show container
+          const container = document.querySelector(".carplay-container")
+          if (container && container.classList) container.classList.remove("hidden")
+
+          if (data.config) {
+            this.volume = data.config.volume || 50
+            this.range = data.config.range || 15
+            if (this.volumeSlider) this.volumeSlider.value = this.volume
+            if (this.rangeSlider) this.rangeSlider.value = this.range
+            if (this.volumeValue) this.volumeValue.textContent = this.volume
+            if (this.rangeValue) this.rangeValue.textContent = this.range
+          }
+          if (data.queue) {
+            this.queue = data.queue
+            this.updateQueueDisplay()
+            this.updateShuffleButton()
+            this.updateRepeatButton()
+          }
+          if (data.currentState && data.currentState.songInfo) {
+            this.currentSong = data.currentState.songInfo
+            this.isPlaying = data.currentState.isPlaying
+            this.progress = data.currentState.songInfo.currentTime || 0
+            this.duration = data.currentState.songInfo.duration || 180
+
+            this.updateScrollingText(this.trackTitle, this.currentSong.title || "No Music Playing")
+            this.updateScrollingText(this.trackArtist, this.currentSong.artist || "Select a song to begin")
+            this.updatePlayPauseButton()
+            this.updateProgressDisplay()
+
+            if (data.currentState.songInfo.volume !== undefined) {
+              this.volume = data.currentState.songInfo.volume
+              if (this.volumeSlider) this.volumeSlider.value = this.volume
+              if (this.volumeValue) this.volumeValue.textContent = this.volume
+            }
           }
         }
         break
 
       case "closeCarPlay":
-        document.body.classList.add("hidden")
-        this.closeSettings()
+        {
+          const container = document.querySelector(".carplay-container")
+          if (container && container.classList) container.classList.add("hidden")
+          this.closeSettings()
+        }
         break
 
       case "queueUpdated":
@@ -726,38 +734,42 @@ class CarPlayController {
       case "musicStarted":
         this.currentSong = data.songInfo
 
-        // Clean up the display for "YouTube Video"
         if (data.songInfo.title === "YouTube Video") {
           this.updateScrollingText(this.trackTitle, "YouTube Stream")
           this.updateScrollingText(this.trackArtist, "Audio from YouTube")
-          this.trackStatus.textContent = "Ready to play"
+          if (this.trackStatus) this.trackStatus.textContent = "Ready to play"
         } else {
           this.updateScrollingText(this.trackTitle, data.songInfo.title)
           this.updateScrollingText(this.trackArtist, data.songInfo.artist)
-          this.trackStatus.textContent = "Now playing"
+          if (this.trackStatus) this.trackStatus.textContent = "Now playing"
         }
 
         this.duration = data.songInfo.duration || 180
         this.progress = 0
         this.isPlaying = true
 
-        // Load thumbnail with fallback
         if (data.songInfo.thumbnail && data.songInfo.thumbnail !== "/placeholder.svg?height=300&width=300") {
           const img = new Image()
           img.crossOrigin = "anonymous"
           img.onload = () => {
-            this.albumArt.src = data.songInfo.thumbnail
-            this.albumArt.parentElement.classList.remove("placeholder")
+            if (this.albumArt) {
+              this.albumArt.src = data.songInfo.thumbnail
+              if (this.albumArt.parentElement) this.albumArt.parentElement.classList.remove("placeholder")
+            }
           }
           img.onerror = () => {
             console.log("Failed to load thumbnail, using placeholder")
-            this.albumArt.src = "/placeholder.svg?height=300&width=300"
-            this.albumArt.parentElement.classList.add("placeholder")
+            if (this.albumArt) {
+              this.albumArt.src = "/placeholder.svg?height=300&width=300"
+              if (this.albumArt.parentElement) this.albumArt.parentElement.classList.add("placeholder")
+            }
           }
           img.src = data.songInfo.thumbnail
         } else {
-          this.albumArt.src = "/placeholder.svg?height=300&width=300"
-          this.albumArt.parentElement.classList.add("placeholder")
+          if (this.albumArt) {
+            this.albumArt.src = "/placeholder.svg?height=300&width=300"
+            if (this.albumArt.parentElement) this.albumArt.parentElement.classList.add("placeholder")
+          }
         }
 
         this.updatePlayPauseButton()
@@ -768,12 +780,13 @@ class CarPlayController {
         this.currentSong = null
         this.updateScrollingText(this.trackTitle, "No Music Playing")
         this.updateScrollingText(this.trackArtist, "Select a song to begin")
-        this.trackStatus.textContent = ""
+        if (this.trackStatus) this.trackStatus.textContent = ""
         this.progress = 0
         this.isPlaying = false
-        this.albumArt.src = "/placeholder.svg?height=300&width=300"
-        this.albumArt.parentElement.classList.add("placeholder")
-
+        if (this.albumArt) {
+          this.albumArt.src = "/placeholder.svg?height=300&width=300"
+          if (this.albumArt.parentElement) this.albumArt.parentElement.classList.add("placeholder")
+        }
         this.updatePlayPauseButton()
         this.updateProgressDisplay()
         break
@@ -781,33 +794,29 @@ class CarPlayController {
       case "musicPaused":
         this.isPlaying = false
         this.updatePlayPauseButton()
-        this.trackStatus.textContent = "Paused"
+        if (this.trackStatus) this.trackStatus.textContent = "Paused"
         break
 
       case "musicResumed":
         this.isPlaying = true
         this.updatePlayPauseButton()
-        this.trackStatus.textContent = "Playing"
+        if (this.trackStatus) this.trackStatus.textContent = "Playing"
         break
 
       case "musicLoading":
-        this.trackStatus.textContent = "Loading..."
+        if (this.trackStatus) this.trackStatus.textContent = "Loading..."
         break
 
       case "updateProgress":
-        if (data.currentTime !== undefined) {
-          this.progress = data.currentTime
-        }
-        if (data.duration !== undefined) {
-          this.duration = data.duration
-        }
+        if (data.currentTime !== undefined) this.progress = data.currentTime
+        if (data.duration !== undefined) this.duration = data.duration
         if (data.isPaused !== undefined) {
           this.isPlaying = !data.isPaused
           this.updatePlayPauseButton()
           if (data.isPaused) {
-            this.trackStatus.textContent = "Paused"
+            if (this.trackStatus) this.trackStatus.textContent = "Paused"
           } else {
-            this.trackStatus.textContent = "Playing"
+            if (this.trackStatus) this.trackStatus.textContent = "Playing"
           }
         }
         this.updateProgressDisplay()
@@ -820,46 +829,29 @@ class CarPlayController {
   }
 }
 
-let carplay
-
 // Initialize CarPlay when DOM is loaded
 document.addEventListener("DOMContentLoaded", () => {
-  if (!carplay) {
-    carplay = new CarPlayController()
+  const carplay = new CarPlayController()
 
-    // Listen for messages from the client
-    window.addEventListener("message", (event) => {
-      carplay.handleMessage(event.data)
-    })
+  // Listen for messages from the client
+  window.addEventListener("message", (event) => {
+    if (event && event.data) carplay.handleMessage(event.data)
+  })
 
-    // Make carplay globally accessible for debugging
-    window.carplay = carplay
-  }
+  // Make carplay globally accessible for debugging
+  window.carplay = carplay
 })
 
-// Add CSS animations
+// Add CSS animations (toasts)
 const style = document.createElement("style")
 style.textContent = `
     @keyframes slideIn {
-        from {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
     }
-    
     @keyframes slideOut {
-        from {
-            transform: translateX(0);
-            opacity: 1;
-        }
-        to {
-            transform: translateX(100%);
-            opacity: 0;
-        }
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(100%); opacity: 0; }
     }
 `
 document.head.appendChild(style)
